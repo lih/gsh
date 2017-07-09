@@ -1,0 +1,30 @@
+#!/bin/bash
+export TEXTDOMAIN=gsh
+function C.gsh.module() {
+    local -a mods=( )
+    local mod
+    for mod in ~/.dsh/modules/*; do
+        mods+=( "${mod##*/} -- $(cat "$mod/description" || printf $"The '%s' module" "${mod##*/}")" )
+    done 2>/dev/null
+    C.rawWordOf "${#mods[@]}" "${mods[@]}" "$@"
+}
+function C.gsh.group() {
+    local -a grps=( ~/.dsh/group/* )
+    C.wordOf "${#grps[@]}" "${grps[@]##*/}" "$@"
+}
+function C.gsh.modcmd() { C.capture word MODULE C.gsh.module C.gsh.cmd; }
+function C.gsh.cmd() { source ~/.dsh/modules/$MODULE/complete 2>/dev/null || :; }
+function C.gsh.arg() {
+    C.alt C.describing $"Select a module to run on all hosts" C.optOf 2 -m --module C.normal C.gsh.modcmd
+    C.alt C.describing $"Add a group of machines from ~/.dsh/group" C.optOf 2 -g --group C.normal C.gsh.group "$@"
+    C.alt C.describing $"Add a host to contact" C.optOf 2 -h --host C.normal C.any "$@"
+    C.alt C.describing $"Show host names before each line of output" C.flagOf 2 -M --machine-names C.normal "$@"
+    C.alt C.describing $"Customize the output" C.optOf 2 -o --output-format C.normal C.any "$@"
+    C.alt C.describing $"Show only the target name after completion" C.flagOf 2 -t --target-id "$@"
+    C.alt C.suffixed "@" C.wordOf 1 "" C.normal C.gsh.group "$@"
+    C.alt C.suffixed "." C.wordOf 1 "" C.normal C.gsh.modcmd
+}
+function C.gsh() { 
+    C.repeat C.gsh.arg
+}
+C.gsh "$@"

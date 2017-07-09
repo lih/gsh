@@ -1,0 +1,29 @@
+#!/usr/bin/setup
+# -*- mode: shell-script -*-
+Setup.import Pkg
+
+function BashPO() {
+    local dest="$1"; shift
+    if [ ! -e "$dest" ]; then 
+	cat > "$dest" <<EOF
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+EOF
+    fi
+
+    for arg; do
+	msgcat "$dest" <(bash --dump-po-strings "$arg") > "$dest.new"
+	mv "$dest.new" "$dest"
+    done
+}
+
+case "$1" in
+    package)
+	prepare po/fr/gsh.po = BashPO bin/gsh completions/gsh
+	Pkg.package \
+	    Pkg.po-files po fr/gsh.po \
+	    Pkg.files \
+	    usr/bin/gsh=bin/gsh usr/bin/gsh-config=bin/gsh-config \
+	    usr/share/bash/completions/gsh=completions/gsh;;
+esac

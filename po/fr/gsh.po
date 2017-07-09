@@ -1,0 +1,65 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+#: package/usr/bin/gsh:20
+msgid ""
+"Error: the %s module doesn't exist. Here is a list of available modules : \\n"
+msgstr ""
+"Erreur: le module %s n'existe pas. Voici une liste des modules disponibles : "
+"\\n"
+
+#: package/usr/bin/gsh:55
+msgid ""
+"Warning: you are sending an empty command. Try specifying a different "
+"module, or passing additional arguments."
+msgstr ""
+"Attention: vous envoyez une commande vide. Essayez de spécifier un module "
+"différent ou de passer des paramètres supplémentaires."
+
+#: package/usr/bin/gsh:107
+msgid ""
+"Warning: no machine selected. Try adding a group or host to your command-"
+"line."
+msgstr ""
+"Attention: Aucune machine n'est sélectionnée. Essayez d'ajouter un hôte ou "
+"un groupe (resp. -h et -g) à votre commande."
+
+#: package/usr/bin/gsh:134
+msgid "Error in host %s\\n"
+msgstr "Erreur dans l'hôte %s\\n"
+
+#: package/usr/bin/gsh:146
+msgid "Usage: gsh <option>... -m <module> <arg>..."
+msgstr "Usage: gsh <option>... -m <module> <arg>..."
+
+#: package/usr/bin/gsh:148
+msgid "Executes a command on multiple hosts."
+msgstr "Éxécute une commande sur de multiples hôtes."
+
+#: package/usr/share/bash/completions/gsh:7
+msgid "The '%s' module"
+msgstr "Le module '%s'"
+
+#: package/usr/share/bash/completions/gsh:18
+msgid "Select a module to run on all hosts"
+msgstr "Sélectionne un module à éxécuter"
+
+#: package/usr/share/bash/completions/gsh:19
+msgid "Add a group of machines from ~/.dsh/group"
+msgstr "Ajoute un groupe de machines à la destination"
+
+#: package/usr/share/bash/completions/gsh:20
+msgid "Add a host to contact"
+msgstr "Ajoute un hôte à contacter"
+
+#: package/usr/share/bash/completions/gsh:21
+msgid "Show host names before each line of output"
+msgstr "Affiche le nom des machines devant leur sortie"
+
+#: package/usr/share/bash/completions/gsh:22
+msgid "Customize the output"
+msgstr "Personnalise le format de sortie"
+
+#: package/usr/share/bash/completions/gsh:23
+msgid "Show only the target name after completion"
+msgstr "Affiche seulement le nom des tâches une fois terminées"

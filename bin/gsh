@@ -1,0 +1,156 @@
+#!/bin/bash
+export TEXTDOMAIN=gsh
+
+set -e
+function error() { echo "Error: ${*:2}" >&2; exit "$1"; }
+function trace() { echo "$@" >&2; "$@"; }
+
+GSH_PATH="$HOME/.dsh"
+GROUP_PATH="$GSH_PATH/groups"
+MOD_PATH="$GSH_PATH/modules"
+TASK_PATH="$GSH_PATH/tasks"
+NOW="$(date +%s)"
+
+function var() { [ -e "$1" ] && printf "%s\n" "$(< "$1")"; }
+function set-module() {
+    if [ -e "$MOD_PATH/$1" ]; then
+        module="$1"
+    else
+        { 
+            printf $"Error: the %s module doesn't exist. Here is a list of available modules : \n" "$module" >&2
+            for m in "$MOD_PATH"/*; do echo "  - ${m##*/}"; done
+        } >&2
+        return 1
+    fi        
+}
+function gsh-args() {
+    function showline() { echo "${*:2}"; }
+    
+    eval "set -- $(getopt -o tm:g:h:aMo: -l module:,group:,host:,all,machine-names,target-id,output-format: -- "$@")"
+    while (($# > 0)); do
+        opt="$1"
+        shift
+        case "$opt" in
+            .*) set-module "${opt#.}" || return;;
+            -m|--module) set-module "$1" || return; shift;;
+            @*) groups+=( "${opt#@}" );;
+            -g|--group) groups+=( "$1" ); shift;;
+            -h|--host)  hosts+=( "$1" ); shift;;
+            -a|--all)   groups+=( "all" );;
+            -o|--output-format) output_format="$1"; shift;;
+            -M|--machine-names) function showline() { printf "%s: %s\n" "$1" "${*:2}"; };;
+            -t|--target-id) show_target_id=true;;
+            --) ;;
+            -*)  error 2 "Unknown option: $opt";;
+            *)  cmd=( "$opt" "$@" ); set --;;
+        esac
+    done
+}
+function run-gsh() {
+    local -a groups=( ) hosts=( ) cmd=( )
+    local module=cmd output_format="%{stdout}" show_target_id=
+    gsh-args "$@" || return
+
+    if [ "$module" == cmd ] && [ "${#cmd[@]}" == 0 ]; then
+        echo $"Warning: you are sending an empty command. Try specifying a different module, or passing additional arguments." >&2
+    fi
+
+    local mod_dir=".dsh/modules/$module"
+    local task_id="$(sha256sum <<< "${cmd[*]}")"
+    local task_id="${task_id%%[ 	]*}"
+    local tmpdir="$(mktemp -d)"
+    local mod_ar="$tmpdir/module.tar.gz"
+    
+    mkdir -p "$tmpdir/prepare"
+    local prepare="$HOME/$mod_dir/prepare"
+    if [ -x "$prepare" ]; then
+        cd "$tmpdir/prepare"
+        "$prepare" "${cmd[@]}"
+        if [ -r depends ]; then
+            local -a args=( )
+            local host 
+            while read -r dir host args; do
+                args=( $args )
+                task="$(run-gsh -t -h "$host" "${args[@]}")"
+                cp -a -T "$TASK_PATH/$host/$task" "$dir"
+            done < depends
+        fi
+    fi
+    tar -czf "$mod_ar" -C "$HOME/$mod_dir" . -C "$tmpdir/prepare" .
+
+    local -a tasks=( )
+    function run-mod() {
+        local dir="" mac="$1" task_dir="$TASK_PATH/$mac/$module/$task_id"
+        if (( $(var "$task_dir/expiry" || echo 0) < NOW )); then rm -rf "$task_dir"; fi
+        if [ ! -e "$task_dir/errno" ] || (( $(< "$task_dir/errno") != 0 )) || [ "$HOME/$mod_dir/run" -nt "$task_dir/errno" ]; then
+            (
+                cmd=( "${cmd[@]//\'/\'\\\'\'}" )
+                cmd=( "${cmd[@]/#/\'}" )
+                cmd=( "${cmd[@]/%/\'}" )
+                ssh -o BatchMode=yes "$mac" "STATUS=status/$task_id; export STATUS; mkdir -p \"$mod_dir/\$STATUS\" && cd $mod_dir && tar -xz && { ./run ${cmd[*]} > \"\$STATUS/stdout\" 2> \"\$STATUS/stderr\" ; echo \$? > \"\$STATUS/errno\" ; tar -cz -C \"\$STATUS\" .; }" < "$mod_ar" \
+                    | { mkdir -p "$task_dir"; tar -xz -C "$task_dir"; }
+            ) &
+        fi
+        tasks+=( "$mac/$module/$task_id" )
+    }
+    local group mac
+    for group in "${groups[@]}"; do
+        for mac in $(cat "$GROUP_PATH/$group"); do
+            run-mod "$mac"
+        done
+    done
+    for mac in "${hosts[@]}"; do run-mod "$mac"; done
+    wait
+    rm -rf "$tmpdir"
+
+    if ((${#tasks[@]} == 0)); then
+        echo $"Warning: no machine selected. Try adding a group or host to your command-line." >&2
+    fi
+    if [ "$show_target_id" == true ]; then
+        echo "$module/$task_id"
+    else
+        function task-var() { var "$TASK_PATH/$task/$1"; }
+        function show-task() {
+            local state="$output_format" head var
+            while [[ "$state" == *'%{'* ]]; do
+                head="${state%%'%{'*}"
+                var="${state#$head'%{'}"
+                state="${var#*'}'}"
+                var="${var%%'}'*}"
+                var="$(task-var "$var")" || return 1
+                printf "%s%s" "$head" "$var"
+            done
+            printf "%s\n" "$state"
+        }
+        local task
+        for task in "${tasks[@]}"; do
+            if (( $(task-var errno || echo 255) == 0 )); then show-task; fi | while IFS= read -r line; do
+                showline "${task%%/*}" "$line"
+            done
+        done
+        errno=0
+        for task in "${tasks[@]}"; do
+            if (( $(task-var errno || echo 255) != 0 )); then
+                printf $"Error in host %s\n" "${task%%/*}"
+                task-var stderr | while IFS= read -r line; do
+                    showline "${task%%/*}" "$line"
+                done
+                errno=1
+            fi 
+        done >&2
+        return "$errno"
+    fi
+}
+
+if (($# == 0)); then
+    printf "%s\n" $"Usage: gsh <option>... -m <module> <arg>..."
+    printf "%s\n" 
+    printf "%s\n" $"Executes a command on multiple hosts."
+    exit 1
+else
+    run-gsh "$@"
+fi
+
+
+
+

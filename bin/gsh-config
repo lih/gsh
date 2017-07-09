@@ -1,0 +1,50 @@
+#!/bin/bash
+hosts=( )
+LAST_ARGS=( )
+FAILURE_MODE=filter
+function host() { hosts+=( "$1" ); }
+function group() { hosts+=( $(cat ~/.dsh/group/"$1") ); }
+function with-group() { 
+    local -a groups=( "${groups[@]}" "$1" )
+    "${@:2}"
+}
+function with-host() {
+    local -a hosts=( "${hosts[@]}" "$1" )
+    "${@:2}"
+}
+FORMAT=
+function output() { local FORMAT="$1"; if (( $# > 1 )); then "${@:2}"; else /usr/bin/gsh -o"$FORMAT" "${hosts[@]/#/-h}" "${LAST_ARGS[@]}"; fi; }
+function choose() { local FAILURE_MODE=filter; "$@"; }
+function run-module() {
+    LAST_ARGS=( -m"$1" "${@:2}" )
+    ( 
+        if [ -z "$FORMAT" ]; then exec >/dev/null; fi
+        /usr/bin/gsh ${FORMAT:+-o"$FORMAT"} "${hosts[@]/#/-h}" "${LAST_ARGS[@]}"
+    )
+    if [ "$FAILURE_MODE" == filter ]; then
+        local -a remaining_hosts=( )
+        local -a task_id=( $(sha256sum <<< "${*:2}") ) 
+        for h in "${hosts[@]}"; do
+            if (( $(cat ~/.dsh/tasks/"$h/$1/$task_id"/errno) == 0 )); then
+                remaining_hosts+=( "$h" )
+            fi
+        done
+        hosts=( "${remaining_hosts[@]}" )
+    fi
+}
+for grp in ~/.dsh/group/*; do
+    grp="${grp##~/.dsh/group/}"
+    eval "function @$grp() { with-group $grp \"\$@\"; }"
+done
+for mod in ~/.dsh/modules/*; do
+    mod="${mod##~/.dsh/modules/}"
+    eval "function .$mod() { run-module $mod \"\$@\"; }"
+done
+if (($# > 0)); then
+    source "$@"
+else
+    while read -r line; do
+        eval "$line"
+    done
+fi
+
