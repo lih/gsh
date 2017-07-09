@@ -1,6 +1,6 @@
 #!/usr/bin/setup
 # -*- mode: shell-script -*-
-Setup.import Pkg
+Setup.use Pkg
 
 function BashPO() {
     local dest="$1"; shift
