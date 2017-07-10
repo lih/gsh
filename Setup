@@ -1,5 +1,4 @@
 #!/usr/bin/setup
-# -*- mode: shell-script -*-
 Setup.use Pkg
 
 function BashPO() {
@@ -27,3 +26,8 @@ case "$1" in
 	    usr/bin/gsh=bin/gsh usr/bin/gsh-config=bin/gsh-config \
 	    usr/share/bash/completions/gsh=completions/gsh;;
 esac
+
+# Local Variables:
+# mode: shell-script
+# sh-shell: bash
+# End:
