@@ -17,15 +17,12 @@ EOF
     done
 }
 
-case "$1" in
-    package)
-	prepare po/fr/gsh.po = BashPO bin/gsh completions/gsh
-	Pkg.package \
-	    Pkg.po-files po fr/gsh.po \
-	    Pkg.files \
-	    usr/bin/gsh=bin/gsh usr/bin/gsh-config=bin/gsh-config \
-	    usr/share/bash/completions/gsh=completions/gsh;;
-esac
+prepare po/fr/gsh.po = BashPO bin/gsh completions/gsh
+Pkg.package \
+    Pkg.po-files po fr/gsh.po \
+    Pkg.files \
+    usr/bin/gsh=bin/gsh usr/bin/gsh-config=bin/gsh-config \
+    usr/share/bash/completions/gsh=completions/gsh
 
 # Local Variables:
 # mode: shell-script
