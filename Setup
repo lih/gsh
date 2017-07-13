@@ -18,11 +18,13 @@ EOF
 }
 
 prepare po/fr/gsh.po = BashPO bin/gsh completions/gsh
-Pkg.package \
-    Pkg.po-files po fr/gsh.po \
-    Pkg.files \
-    usr/bin/gsh=bin/gsh usr/bin/gsh-config=bin/gsh-config \
-    usr/share/bash/completions/gsh=completions/gsh
+if Setup.params -package; then
+    Pkg.package \
+        Pkg.po-files po fr/gsh.po \
+        Pkg.files \
+        usr/bin/gsh=bin/gsh usr/bin/gsh-config=bin/gsh-config \
+        usr/share/bash/completions/gsh=completions/gsh
+fi
 
 # Local Variables:
 # mode: shell-script
